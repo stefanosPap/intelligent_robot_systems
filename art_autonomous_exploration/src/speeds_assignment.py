@@ -196,7 +196,8 @@ class RobotController:
         ############################### NOTE QUESTION ############################
         # You must combine the two sets of speeds. You can use motor schema,
         # subsumption of whatever suits your better.
-
+        self.linear_velocity  = l_goal
+        self.angular_velocity = a_goal
         ##########################################################################
       else:
         ############################### NOTE QUESTION ############################

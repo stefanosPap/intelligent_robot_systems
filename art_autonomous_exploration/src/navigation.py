@@ -278,11 +278,33 @@ class Navigation:
         # robot_perception and the next_subtarget [x,y]. From these, you can 
         # compute the robot velocities for the vehicle to approach the target.
         # Hint: Trigonometry is required
-
         if self.subtargets and self.next_subtarget <= len(self.subtargets) - 1:
             st_x = self.subtargets[self.next_subtarget][0]
             st_y = self.subtargets[self.next_subtarget][1]
             
+        ######################### NOTE: QUESTION  ##############################
+            #theta contains yaw angle, hence we convert it to x,y coordinates in order to find the angle in degrees  
+            x = math.cos(theta)
+            y = math.sin(theta)
+            deg = math.degrees(math.atan2(y,x))
+            delta_theta = math.degrees(math.atan2(st_y - ry,st_x - rx)) - deg 
+            
+            if delta_theta >= 0 and delta_theta < 180:  
+                angular = delta_theta / 180  
+                
+            elif delta_theta > 0 and delta_theta >= 180:
+                angular = (delta_theta - 2 * 180)/180
+            
+            elif delta_theta <=0 and delta_theta > -180:
+                angular = delta_theta / 180
+            
+            elif delta_theta < 0 and delta_theta < -180:
+                angular = (delta_theta + 2 * 180) / 180
+            
+            linear = (1 - abs(angular)) ** 30 
+            linear = linear * 0.3
+            #angular = angular * 0.3 angular velocity should be multiplied by max angular velocity according to notes
+            #but the result was much slower so we didn't multiply it by 0.3  
         ######################### NOTE: QUESTION  ##############################
 
         return [linear, angular]
