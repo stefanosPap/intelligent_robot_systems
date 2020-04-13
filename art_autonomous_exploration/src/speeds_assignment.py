@@ -1,9 +1,10 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 
 import rospy
 import math
 import time
-
+import numpy as np 
+from numpy import interp 
 from sensor_msgs.msg import Range
 from sensor_msgs.msg import LaserScan
 from geometry_msgs.msg import Twist
@@ -67,49 +68,28 @@ class RobotController:
     # Produces speeds from the laser
     def produceSpeedsLaser(self):
       scan = self.laser_aggregation.laser_scan
-      linear  = 0
-      angular = 0
+      angle_increment = self.laser_aggregation.angle_increment
+      range_min = self.laser_aggregation.range_min
+      range_max = self.laser_aggregation.range_max
+      angle_max = self.laser_aggregation.angle_max
+      angle_min = self.laser_aggregation.angle_min
+      header = self.laser_aggregation.header 
+
       ############################### NOTE QUESTION ############################
       # Check what laser_scan contains and create linear and angular speeds
       # for obstacle avoidance
-      min_range = min(scan)
-      min_range_angle = scan.index(min(scan))
-    
-      max_range = max(scan)
-      max_range_angle = scan.index(max(scan))
-       
-      first_low_boundary = 0
-      first_up_boundary = len(scan)
-      second_low_boundary = -2.094 #minimum angle of a laser scan message 
-      second_up_boundary = 2.094 #maximum angle of a laser scan message
-
-      #map function to convert the indexes of scan array to the range of the real angles of the laser range 
-      #convert (0  -  scan's length) -> (-2.094  -  2.094)
-      map_fun = lambda x: (x - first_low_boundary)*(second_up_boundary - second_low_boundary) / (first_up_boundary - first_low_boundary) + second_low_boundary 
-      
-      min_range_angle = map_fun(min_range_angle)
-      max_range_angle = map_fun(max_range_angle)  
-     
-      #negative angular turns the robot right and positive left
-      
-      #speed's values are assigned in 0 - 100 range and at the end of the calculations they will be converted in the range -0.3  -  0.3
-      #using the map_fun_percent function
-      #-100 -> -0.3 , 0 -> 0 , 100 -> 0.3
-      angular = 0
-      linear = 60
-      #speed's weights are changing according to some criteria 
-      
+      '''
       #1st criterion 
-      count_right = 0
-      count_left = 0
+      turn_right = 0
+      turn_left = 0
       for i in range(len(scan)):
           if (scan[i] == max_range or scan[i] >= 0.7 * max_range):
             if i < len(scan)/2:
-              count_right += 1 
+              turn_right += 1 
             else:
-              count_left += 1
+              turn_left += 1
               
-      if count_right > count_left:
+      if turn_right > turn_left:
         angular += -28
       else:
         angular += 28
@@ -148,21 +128,43 @@ class RobotController:
           linear = 0
         else:
           angular += 20
-          linear = 0
+          linear = 0 
+      '''                                   
+      map_fun = lambda x: angle_min + x * angle_increment    # convert (0  -  scan's length) -> (-2.094  -  2.094)  
+                                                             # negative angular turns the robot right and positive left 
+      linear_summary = 0                                     # initialize linear and angular velocities to zero 
+      angular_summary = 0
       
-      first_low_boundary = -100 
-      first_up_boundary = 100
-      second_low_boundary = -0.3 #minimum angle of a laser scan message 
-      second_up_boundary = 0.3 #maximum angle of a laser scan message
-      map_fun_percent = lambda x: (x - first_low_boundary)*(second_up_boundary - second_low_boundary) / (first_up_boundary - first_low_boundary) + second_low_boundary       
+      for i in range(270,430):                          # for loop for calclulating linear velocity. We take into consideration mostly scanlines in range 270 - 430  
+        angle = map_fun(i)                              # because this is the front view of the robot. This range calculated after experiments. 
+        linear_summary += math.cos(angle) * scan[i]     # Linear velocity is calculated through the summary of cosine(angle) * scan[i] for every scan. Cosine is needed for  
+                                                        # the sign of every element that is part of the summary (angles in range -90 -> 90 give positive sign and angles in range 90 -> 270 give negative sign)
+                                                        # and the scan[i] is needed for the measure of the calculation. The measurement is proportional to scan[i]. 
       
-      angular = map_fun_percent(angular)
-      linear = map_fun_percent(linear)
-      ##########################################################################
+      for i in range(200,500):                          # this for loop is needed in order to avoid collisions when the robot has its front view near an obstacle. Therefore we use the range   
+        if scan[i] < 0.2:                               # 200 -> 500 which is calculated after experiments. When this case happens we set linear velocity equal to zero. 
+          linear_summary = 0
+          break
+        
+      for i in range(0,300):                            # These for loops are used for calclulating angular velocity. We take into consideration mostly scanlines in range 0 - 300
+        angle = map_fun(i)                              # and 400 - 667 because these are the left and right sides of the robot. These ranges calculated after experiments.   
+        angular_summary += math.sin(angle) * (scan[i])  # Angular velocity is calculated through the summary of sin(angle) * scan[i] for every scan. Sin is needed for the sign of every element  
+                                                        # that is part of the summary (angles in range 0 -> 180 give positive sign and angles in range 180 -> 360 give negative sign)
+                                                        # and the scan[i] is needed for the measure of the calculation. The measurement is proportional to scan[i]. 
+      for i in range(400,len(scan)):
+        angle = map_fun(i)  
+        angular_summary += math.sin(angle) * (scan[i])
       
+      if linear_summary == 0:                           # in the case that the robot stucks in front of an obstacle because of zero linear speeed, we increase the angular velocity in order    
+        angular_summary = angular_summary * 10          # to turn faster and leave the narrow area.  
+          
+      linear =  math.tanh(linear_summary / 1000) * 0.3  # apply tanh mathematical function and multiply with 0.3 in order to obtain a value in range -0.3 -> 0.3  
+      angular = math.tanh(angular_summary / 1000) * 0.3 
+      
+      print linear,angular
       return [linear, angular]
       ##########################################################################
-      return [linear, angular]
+      
 
     # Combines the speeds into one output using a motor schema approach
     def produceSpeeds(self):
@@ -206,7 +208,7 @@ class RobotController:
         # Implement obstacle avoidance here using the laser speeds.
         # Hint: Subtract them from something constant
         self.linear_velocity  = l_laser
-        self.angular_velocity = a_laser        
+        self.angular_velocity = a_laser          
         ##########################################################################
 
     # Assistive functions
