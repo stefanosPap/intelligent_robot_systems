@@ -74,7 +74,6 @@ class RobotController:
       angle_max = self.laser_aggregation.angle_max
       angle_min = self.laser_aggregation.angle_min
       header = self.laser_aggregation.header 
-
       ############################### NOTE QUESTION ############################
       # Check what laser_scan contains and create linear and angular speeds
       # for obstacle avoidance
@@ -130,9 +129,10 @@ class RobotController:
           angular += 20
           linear = 0 
       '''                                   
-      map_fun = lambda x: angle_min + x * angle_increment    # convert (0  -  scan's length) -> (-2.094  -  2.094)  
-                                                             # negative angular turns the robot right and positive left 
-      linear_summary = 0                                     # initialize linear and angular velocities to zero 
+      map_fun = lambda x: angle_min + x * angle_increment # convert (0  -  scan's length) -> (-2.094  -  2.094)  
+                                                          # negative angular turns the robot right and positive left 
+                                                          # initialize linear and angular velocities to zero 
+      linear_summary = 0
       angular_summary = 0
       
       for i in range(270,430):                          # for loop for calclulating linear velocity. We take into consideration mostly scanlines in range 270 - 430  
