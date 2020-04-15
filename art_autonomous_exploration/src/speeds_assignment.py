@@ -161,7 +161,7 @@ class RobotController:
       linear =  math.tanh(linear_summary / 1000) * 0.3  # apply tanh mathematical function and multiply with 0.3 in order to obtain a value in range -0.3 -> 0.3  
       angular = math.tanh(angular_summary / 1000) * 0.3 
       
-      print linear,angular
+     
       return [linear, angular]
       ##########################################################################
       
@@ -198,10 +198,18 @@ class RobotController:
         ############################### NOTE QUESTION ############################
         # You must combine the two sets of speeds. You can use motor schema,
         # subsumption of whatever suits your better.
-        parameter_1 = 0.8
-        parameter_2 = 0.2 
-        self.linear_velocity = (parameter_1 * l_goal + parameter_2 * l_laser) / (parameter_2 + parameter_1)
-        self.angular_velocity = (parameter_1 * a_goal + parameter_2 * a_laser) / (parameter_2 + parameter_1) 
+
+        if l_laser != 0:
+            parameter_1 = 0.8
+            parameter_2 = 0.2 
+            self.linear_velocity = (parameter_1 * l_goal + parameter_2 * l_laser) / (parameter_2 + parameter_1)
+            self.angular_velocity = (parameter_1 * a_goal + parameter_2 * a_laser) / (parameter_2 + parameter_1) 
+        else:
+            parameter_1 = 0
+            parameter_2 = 1 
+            self.linear_velocity = (parameter_1 * l_goal + parameter_2 * l_laser) / (parameter_2 + parameter_1)
+            self.angular_velocity = (parameter_1 * a_goal + parameter_2 * a_laser) / (parameter_2 + parameter_1) 
+        #print self.linear_velocity, self.angular_velocity
         ##########################################################################
       else:
         ############################### NOTE QUESTION ############################

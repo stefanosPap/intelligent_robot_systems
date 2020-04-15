@@ -100,31 +100,45 @@ class Navigation:
         # What if a later subtarget or the end has been reached before the 
         # next subtarget? Alter the code accordingly.
         # Check if distance is less than 7 px (14 cm)
-        scan = self.laser_aggregation.laser_scan
-        count_2 = 0
-        for i in range(len(scan)/6,4*len(scan)/6):
-            if scan[i] > 2:
-                count_2 += 1
-        if dist < 5:
-            if self.next_subtarget == 0: #the robot goes in the first target in order to take right orientation 
-                self.next_subtarget += 1
-                self.counter_to_next_sub = self.count_limit + 300
-            elif count_2 > 10: #check if obstacle closer than 4 cm exists 
-                self.next_subtarget += 3
-                self.counter_to_next_sub = self.count_limit + 300 
-                # Check if the final subtarget has been approached 
-                if self.next_subtarget >= len(self.subtargets):
-                    self.next_subtarget = len(self.subtargets)
-                    self.target_exists = False
+        count = 1
+        for i in range(self.next_subtarget, len(self.subtargets) - 2):      # compare the slope of the points till the end in order to check if there are more than one points at the same line 
+            try:                                                            # use try except to avoid zerodivisior error 
+                slope1 = (self.subtargets[i + 1][1] - self.subtargets[i][1]) / (self.subtargets[i + 1][0] - self.subtargets[i][0])  
+            except ZeroDivisionError:
+                slope1 = float('Inf')
+            try:
+                slope2 = (self.subtargets[i + 2][1] - self.subtargets[i + 1][1]) / (self.subtargets[i + 2][0] - self.subtargets[i + 1][0])
+            except ZeroDivisionError:
+                slope2 = float('Inf')
+            
+            if abs(slope1 - slope2) < 0.3 or (slope1 == float('inf') and slope2 == float('inf')):  # if difference in slopes is less than 0.3 then we assume that the points are in the same line  
+                count += 1
             else:
-                self.next_subtarget += 1
-                self.counter_to_next_sub = self.count_limit + 300
-                # Check if the final subtarget has been approached 
-                if self.next_subtarget >= len(self.subtargets):
-                    self.next_subtarget = len(self.subtargets)
-                    self.target_exists = False
-        ########################################################################
+                break     
+         
+        scan = self.laser_aggregation.laser_scan                            # take scan measurements 
+        count_scan = 0
+        for i in range(250,450):                                            # count scanlines with measure more than 2. The range has calculated after experiments.  
+            if scan[i] > 2:
+                count_scan += 1
         
+        if dist < 5:
+            if count != 1: 
+                self.next_subtarget += count                                # if there are more than one subtargets that belongs to the same line then the robot goes to the last target of the line  
+                self.counter_to_next_sub = self.count_limit + count * 100   # increase time limit proportionally to the count in order to avoid time reset 
+            elif count_scan > 10:                                           # check if obstacle closer than 4 cm exists, if obstacle does not exist then  
+                self.next_subtarget += 2                                    # increase subtarget by 2. This case happens when count = 1 in order to accelerate the process in case of not having subtargets in the same line  
+                self.counter_to_next_sub = self.count_limit + 300           # increase time limit in order to avoid time reset  
+                if self.next_subtarget >= len(self.subtargets):             # check if the final subtarget has been approached
+                    self.next_subtarget = len(self.subtargets)
+            else:
+                self.next_subtarget += 1                                    # else if obstacle exists then increase subtarget by 1 
+                self.counter_to_next_sub = self.count_limit + 300           # increase time limit in order to avoid time reset 
+                if self.next_subtarget >= len(self.subtargets):             # check if the final subtarget has been approached
+                    self.next_subtarget = len(self.subtargets)
+            
+            if self.next_subtarget == len(self.subtargets):
+                self.target_exists = False      
         # Publish the current target
         if self.next_subtarget == len(self.subtargets):
             return
@@ -301,7 +315,7 @@ class Navigation:
             st_y = self.subtargets[self.next_subtarget][1]
             
         ######################### NOTE: QUESTION  ##############################
-            #theta contains yaw angle, hence we convert it to x,y coordinates in order to find the angle in degrees  
+                                                                                    # theta contains yaw angle, hence we convert it to x,y coordinates in order to find the angle in degrees  
             x = math.cos(theta)
             y = math.sin(theta)
             deg = math.degrees(math.atan2(y,x))
@@ -311,18 +325,21 @@ class Navigation:
                 angular = delta_theta / 180  
                 
             elif delta_theta > 0 and delta_theta >= 180:
-                angular = (delta_theta - 2 * 180)/180
+                angular = (delta_theta - 2 * 180) / 180
             
             elif delta_theta <=0 and delta_theta > -180:
                 angular = delta_theta / 180
             
             elif delta_theta < 0 and delta_theta < -180:
                 angular = (delta_theta + 2 * 180) / 180
-            
-            linear = (1 - abs(angular)) ** 30 
-            linear = linear * 0.3
-            #angular = angular * 0.3 angular velocity should be multiplied by max angular velocity according to notes
-            #but the result was much slower so we didn't multiply it by 0.3  
+             
+            linear = ((1 - abs(angular)) ** 25)                                     # power calculated after experiments and we use it in order to avoid overshoot problem
+            linear = linear * 0.3                                                   # use tanh to limit the range 
+            if angular > 0.3:                                                       # angular = angular * 0.3. angular velocity should be multiplied by max angular velocity according to notes
+                angular = 0.3
+            elif angular < -0.3:
+                angular = -0.3
+                                                                                    # but the result was much slower so we didn't multiply it by 0.3  
         ######################### NOTE: QUESTION  ##############################
 
         return [linear, angular]
