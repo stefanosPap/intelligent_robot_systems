@@ -316,7 +316,7 @@ class Navigation:
             
         ######################### NOTE: QUESTION  ##############################
                                                                                     # theta contains yaw angle, hence we convert it to x,y coordinates in order to find the angle in degrees  
-            x = math.cos(theta)
+            x = math.cos(theta)                                                     
             y = math.sin(theta)
             deg = math.degrees(math.atan2(y,x))
             delta_theta = math.degrees(math.atan2(st_y - ry,st_x - rx)) - deg 

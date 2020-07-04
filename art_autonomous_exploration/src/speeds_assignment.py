@@ -67,8 +67,8 @@ class RobotController:
 
     # Produces speeds from the laser
     def produceSpeedsLaser(self):
-      scan = self.laser_aggregation.laser_scan
-      angle_increment = self.laser_aggregation.angle_increment
+      scan = self.laser_aggregation.laser_scan                    # the message is of type sensor_msgs/LaserScan 
+      angle_increment = self.laser_aggregation.angle_increment    # we assign its attributes to local variables in order to use them in the method 
       range_min = self.laser_aggregation.range_min
       range_max = self.laser_aggregation.range_max
       angle_max = self.laser_aggregation.angle_max
@@ -161,7 +161,6 @@ class RobotController:
       linear =  math.tanh(linear_summary / 1000) * 0.3  # apply tanh mathematical function and multiply with 0.3 in order to obtain a value in range -0.3 -> 0.3  
       angular = math.tanh(angular_summary / 1000) * 0.3 
       
-     
       return [linear, angular]
       ##########################################################################
       
@@ -209,7 +208,6 @@ class RobotController:
             parameter_2 = 1 
             self.linear_velocity = (parameter_1 * l_goal + parameter_2 * l_laser) / (parameter_2 + parameter_1)
             self.angular_velocity = (parameter_1 * a_goal + parameter_2 * a_laser) / (parameter_2 + parameter_1) 
-        #print self.linear_velocity, self.angular_velocity
         ##########################################################################
       else:
         ############################### NOTE QUESTION ############################
